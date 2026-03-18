@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Blockchain Notary | Proof of Existence</title>
+    <style>
+        :root { --primary: #0052ff; --bg: #f8f9fa; --text: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 40px 20px; line-height: 1.6; }
+        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 500px; }
+        h1 { font-size: 1.5rem; margin-bottom: 10px; color: var(--primary); }
+        .privacy-badge { background: #e7f3ff; color: #0052ff; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 20px; border-left: 4px solid var(--primary); }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; border-radius: 6px; font-weight: 600; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem; }
+        input[type="text"], input[type="email"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        #drop-zone { border: 2px dashed #cbd5e0; padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.3s; background: #fafafa; }
+        #drop-zone.hover { border-color: var(--primary); background: #f0f7ff; }
+        .hidden { display: none; }
+        button#submit-btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button#submit-btn:disabled { background: #cbd5e0; cursor: not-allowed; }
+        #status { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 0.85rem; background: #f1f1f1; white-space: pre-wrap; word-break: break-all; }
+        .back-link { display: block; text-align: center; margin-top: 20px; font-size: 0.8rem; color: #666; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛡️ Blockchain Notary</h1>
+    <div class="privacy-badge">
+        <strong>Privacy:</strong> Hashing happens locally. Your files are <u>never</u> uploaded.
+    </div>
+
+    <div class="tabs">
+        <button id="btn-file" class="tab-btn active" onclick="setMode('file')">File Upload</button>
+        <button id="btn-manual" class="tab-btn" onclick="setMode('manual')">Manual Hash</button>
+    </div>
+
+    <div id="file-mode">
+        <div id="drop-zone">Drag & Drop file here <br> or click to browse</div>
+        <input type="file" id="file-input" class="hidden">
+    </div>
+
+    <div id="manual-mode" class="hidden">
+        <div class="input-group">
+            <label>Filename / Reference Name</label>
+            <input type="text" id="manual-filename" placeholder="e.g. project_blueprint">
+        </div>
+        <div class="input-group">
+            <label>SHA-256 Hash Value</label>
+            <input type="text" id="manual-hash" placeholder="Paste 64-character hex hash">
+        </div>
+    </div>
+
+    <div class="input-group" style="margin-top:20px;">
+        <label>Email Address (For proof delivery)</label>
+        <input type="email" id="user-email" placeholder="email@example.com">
+    </div>
+
+    <div class="input-group">
+        <label>Access Key</label>
+        <input type="password" id="access-key" placeholder="Enter your POE-XXXXXX key">
+    </div>
+
+    <button id="submit-btn" disabled>Secure on Blockchain</button>
+    <div id="status">Status: Waiting for input...</div>
+    <a href="index.html" class="back-link">← Back to Information Page</a>
+</div>
+
+<script>
+    const WEBHOOK_URL = 'https://mooncake.share.zrok.io/webhook/pi-poe';
+    let currentMode = 'file', currentHash = '', currentFilename = '';
+
+    const dropZone = document.getElementById('drop-zone'), fileInput = document.getElementById('file-input');
+    const manualHashInput = document.getElementById('manual-hash'), manualFilenameInput = document.getElementById('manual-filename');
+    const emailInput = document.getElementById('user-email'), accessKeyInput = document.getElementById('access-key');
+    const submitBtn = document.getElementById('submit-btn'), status = document.getElementById('status');
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btn-file').classList.toggle('active', mode === 'file');
+        document.getElementById('btn-manual').classList.toggle('active', mode === 'manual');
+        document.getElementById('file-mode').classList.toggle('hidden', mode !== 'file');
+        document.getElementById('manual-mode').classList.toggle('hidden', mode !== 'manual');
+        validate();
+    }
+
+    function validate() {
+        const emailValid = emailInput.value.includes('@') && emailInput.value.length > 5;
+        const keyValid = accessKeyInput.value.trim().length > 0;
+        if (currentMode === 'file') {
+            submitBtn.disabled = !(currentHash && emailValid && keyValid);
+        } else {
+            const hashValid = /^[a-f0-9]{64}$/i.test(manualHashInput.value.trim());
+            const nameValid = manualFilenameInput.value.trim().length > 0;
+            if (hashValid) currentHash = manualHashInput.value.trim();
+            currentFilename = manualFilenameInput.value.trim();
+            submitBtn.disabled = !(hashValid && emailValid && nameValid && keyValid);
+        }
+    }
+
+    emailInput.oninput = manualHashInput.oninput = manualFilenameInput.oninput = accessKeyInput.oninput = validate;
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('hover'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('hover');
+    dropZone.ondrop = (e) => { e.preventDefault(); dropZone.classList.remove('hover'); handleFile(e.dataTransfer.files[0]); };
+
+    async function handleFile(file) {
+        if (!file) return;
+        currentFilename = file.name;
+        status.innerText = "Calculating fingerprint locally...";
+        const arrayBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        currentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        status.innerText = `File: ${currentFilename}\nHash: ${currentHash}`;
+        validate();
+    }
+
+    submitBtn.onclick = async () => {
+        status.innerText = "Connecting to secure gateway...";
+        submitBtn.disabled = true;
+        try {
+            const response = await fetch(WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-notary-secret': accessKeyInput.value.trim() },
+                body: JSON.stringify({ filename: currentFilename, hash: currentHash, email: emailInput.value })
+            });
+
+            const data = await response.json(); // DYNAMIC FIX: Parse the JSON from n8n
+
+            if (response.ok) {
+                status.innerHTML = `<b style="color:green">✅ SUCCESS</b><br>${data.message}<br>Delivery to: <b>${emailInput.value}</b>`;
+            } else {
+                // DYNAMIC FIX: Show the specific reason from n8n (e.g. "Key Expired")
+                status.innerHTML = `<b style="color:red">❌ ${data.message || 'Error'}</b><br>${data.reason || 'Please check your access key.'}`;
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            status.innerText = "❌ Connection Error. Check your internet.";
+            submitBtn.disabled = false;
+        }
+    };
+</script>
+</body>
+</html>
